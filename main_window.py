@@ -1,7 +1,11 @@
-from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QListWidgetItem,
-                             QPushButton, QMessageBox, QDateTimeEdit, QLineEdit, QTextEdit, QSpinBox, QToolBar)
+from PyQt6.QtWidgets import (
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QListWidgetItem,
+    QPushButton, QMessageBox, QDateTimeEdit, QLineEdit, QTextEdit, QSpinBox, QToolBar,
+    QMenu
+)
+
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QAction
+from PyQt6.QtGui import QAction, QIcon
 
 import datetime
 from models import TaskRepository
@@ -23,7 +27,12 @@ class MainWindow(QMainWindow):
         # Header toolbar
         toolbar = QToolBar("Main Toolbar")
         self.addToolBar(toolbar)
-        theme_action = QAction("Tema Değiştir", self)
+        # theme_action = QAction("Tema Değiştir", self)
+        # theme_action.triggered.connect(self.toggle_theme)
+        # toolbar.addAction(theme_action)
+
+        theme_action = QAction(
+            QIcon("icons/light-mode.png"), "Change Theme", self)
         theme_action.triggered.connect(self.toggle_theme)
         toolbar.addAction(theme_action)
 
@@ -56,6 +65,8 @@ class MainWindow(QMainWindow):
 
         # Sağ panel
         self.list = QListWidget()
+        self.list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.list.customContextMenuRequested.connect(self.show_context_menu)
         self.list.itemSelectionChanged.connect(self.on_selection_changed)
         right_layout = QVBoxLayout()
         right_layout.addWidget(self.list)
@@ -72,9 +83,20 @@ class MainWindow(QMainWindow):
         self.refresh_list()
 
         # Hatırlatma timer
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.check_reminders)
-        self.timer.start(60000)
+        # self.timer = QTimer()
+        # self.timer.timeout.connect(self.check_reminders)
+        # self.timer.start(60000)
+
+        self.due_timer = QTimer()
+        # self.due_timer.timeout.connect(self.update_due_time)
+        self.due_timer.timeout.connect(self.check_reminders)
+        self.due_timer.start(600000)
+
+        self.due_input.mousePressEvent = lambda event: self.update_due_time()
+
+    def update_due_time(self):
+        print("Updated date and time...")
+        self.due_input.setDateTime(datetime.datetime.now())
 
     def refresh_list(self):
         self.list.clear()
@@ -119,6 +141,16 @@ class MainWindow(QMainWindow):
         self.refresh_list()
         self.clear_inputs()
 
+    def show_context_menu(self, pos):
+        menu = QMenu(self)
+        update_action = menu.addAction("Güncelle")
+        delete_action = menu.addAction("Sil")
+        action = menu.exec(self.list.mapToGlobal(pos))
+        if action == update_action:
+            self.update_selected()
+        elif action == delete_action:
+            self.delete_selected()
+
     def on_selection_changed(self):
         items = self.list.selectedItems()
         if items:
@@ -146,6 +178,8 @@ class MainWindow(QMainWindow):
         self.del_btn.setEnabled(False)
 
     def check_reminders(self):
+        self.update_due_time()
+
         reminders = self.reminder_service.check_reminders()
         for task in reminders:
             QMessageBox.information(self, "Hatırlatma",
