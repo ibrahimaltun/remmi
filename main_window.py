@@ -145,11 +145,16 @@ class MainWindow(QMainWindow):
         menu = QMenu(self)
         update_action = menu.addAction("Güncelle")
         delete_action = menu.addAction("Sil")
+        done_action = menu.addAction("Tamamlandı")
+
         action = menu.exec(self.list.mapToGlobal(pos))
+
         if action == update_action:
             self.update_selected()
         elif action == delete_action:
             self.delete_selected()
+        elif action == done_action:
+            self.mark_done()
 
     def on_selection_changed(self):
         items = self.list.selectedItems()
@@ -184,6 +189,15 @@ class MainWindow(QMainWindow):
         for task in reminders:
             QMessageBox.information(self, "Hatırlatma",
                                     f"Görev: {task.title}\nAçıklama: {task.description}\nSon tarih: {task.due_time}")
+
+    def mark_done(self):
+        items = self.list.selectedItems()
+        if not items:
+            return
+        task_id = items[0].data(Qt.ItemDataRole.UserRole)
+        self.repo.mark_done(task_id)
+        self.refresh_list()
+        self.clear_inputs()
 
     def toggle_theme(self):
         if self.dark_mode:
